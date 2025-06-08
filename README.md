@@ -40,6 +40,28 @@
     img:hover {
       transform: scale(1.02);
     }
+    textarea {
+      width: 100%;
+      height: 100px;
+      border-radius: 10px;
+      border: none;
+      padding: 1rem;
+      margin-bottom: 1rem;
+      font-family: inherit;
+    }
+    input[type="file"] {
+      margin-bottom: 1rem;
+    }
+    audio {
+      display: block;
+      margin-top: 1rem;
+    }
+    .upload-box {
+      background-color: #f4e6ff;
+      border-radius: 12px;
+      padding: 1.5rem;
+      margin-top: 2rem;
+    }
   </style>
 </head>
 <body>
@@ -53,6 +75,7 @@
   <nav>
     <a href="#home">Home</a>
     <a href="#about">About</a>
+    <a href="#share">Share</a>
     <a href="#contact">Contact</a>
   </nav>
 
@@ -68,7 +91,7 @@
     </p>
 
     <h3>My Healing Photo</h3>
-    <img src="myhealing.jpg" alt="My Healing Photo" />
+    <img src="myhealing.jpg" alt/>
 
     <div style="margin-top: 1rem;">
       <h4>Additional Healing Moments</h4>
@@ -79,10 +102,56 @@
     </div>
   </section>
 
+  <section id="share">
+    <h2>Share Your Healing</h2>
+    <p>Add a note, upload a photo, or share a song that helps you feel better.</p>
+
+    <div class="upload-box">
+      <label for="note"><strong>Write a Note</strong></label><br>
+      <textarea id="note" placeholder="Today I felt..."></textarea>
+
+      <label for="imageUpload"><strong>Upload a Photo</strong></label><br>
+      <input type="file" id="imageUpload" accept="image/*" /><br>
+      <img id="imagePreview" style="display:none;" />
+
+      <label for="musicUpload"><strong>Upload Music</strong></label><br>
+      <input type="file" id="musicUpload" accept="audio/*" />
+      <audio controls id="musicPlayer" style="display:none;"></audio>
+    </div>
+  </section>
+
   <section id="contact">
     <h2>Contact</h2>
     <p>Feel free to reach out to me: <strong>09677 965 325</strong></p>
   </section>
+
+  <script>
+    // Image preview
+    document.getElementById('imageUpload').addEventListener('change', function(e) {
+      const file = e.target.files[0];
+      if (file) {
+        const reader = new FileReader();
+        reader.onload = function(evt) {
+          const img = document.getElementById('imagePreview');
+          img.src = evt.target.result;
+          img.style.display = 'block';
+          img.style.maxWidth = '100%';
+          img.style.marginTop = '1rem';
+        };
+        reader.readAsDataURL(file);
+      }
+    });
+
+    // Music preview
+    document.getElementById('musicUpload').addEventListener('change', function(e) {
+      const file = e.target.files[0];
+      if (file) {
+        const audio = document.getElementById('musicPlayer');
+        audio.src = URL.createObjectURL(file);
+        audio.style.display = 'block';
+      }
+    });
+  </script>
 
 </body>
 </html>
