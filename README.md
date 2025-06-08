@@ -2,7 +2,7 @@
 <html lang="en">
 <head>
   <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
   <title>My Healing Journey</title>
   <style>
     body {
@@ -47,10 +47,6 @@
     input[type="file"] {
       margin-bottom: 1rem;
     }
-    audio {
-      display: block;
-      margin-top: 1rem;
-    }
     .upload-box {
       background-color: #f4e6ff;
       border-radius: 12px;
@@ -64,15 +60,22 @@
       border: none;
       border-radius: 8px;
       cursor: pointer;
-    }
-    #savedEntries {
-      margin-top: 2rem;
+      margin-top: 1rem;
     }
     .entry {
       background-color: #fff0ff;
       padding: 1rem;
       border-radius: 10px;
       margin-bottom: 1rem;
+      position: relative;
+    }
+    .entry button {
+      background-color: #ff6699;
+      padding: 0.3rem 0.8rem;
+      font-size: 0.8rem;
+      position: absolute;
+      top: 10px;
+      right: 10px;
     }
   </style>
 </head>
@@ -113,7 +116,7 @@
 
   <section id="share">
     <h2>Share Your Healing</h2>
-    <p>Add a note, upload a photo, and save it for later.</p>
+    <p>Add a note, upload a photo, and save or delete them freely.</p>
 
     <div class="upload-box">
       <label for="note"><strong>Write a Note</strong></label><br>
@@ -138,8 +141,9 @@
   </section>
 
   <script>
-    // Preview image
     let savedImageData = "";
+
+    // Handle image preview and store as base64
     document.getElementById('imageUpload').addEventListener('change', function (e) {
       const file = e.target.files[0];
       if (file) {
@@ -154,9 +158,9 @@
       }
     });
 
-    // Save entry
+    // Save entry to localStorage
     function saveEntry() {
-      const note = document.getElementById('note').value;
+      const note = document.getElementById('note').value.trim();
       if (!note && !savedImageData) {
         alert("Please enter a note or upload a picture.");
         return;
@@ -165,31 +169,46 @@
       let entries = JSON.parse(localStorage.getItem("healingEntries")) || [];
       entries.push({ note: note, image: savedImageData });
       localStorage.setItem("healingEntries", JSON.stringify(entries));
+
+      // Reset input
       document.getElementById('note').value = "";
       document.getElementById('imagePreview').style.display = 'none';
+      document.getElementById('imageUpload').value = "";
       savedImageData = "";
+
       loadEntries();
     }
 
-    // Load saved entries
+    // Delete entry by index
+    function deleteEntry(index) {
+      let entries = JSON.parse(localStorage.getItem("healingEntries")) || [];
+      entries.splice(index, 1);
+      localStorage.setItem("healingEntries", JSON.stringify(entries));
+      loadEntries();
+    }
+
+    // Load and show saved entries
     function loadEntries() {
       const entries = JSON.parse(localStorage.getItem("healingEntries")) || [];
       const container = document.getElementById('savedEntries');
       container.innerHTML = "<h3>Saved Healing Entries</h3>";
-      entries.forEach(entry => {
+
+      entries.forEach((entry, index) => {
         const div = document.createElement('div');
         div.className = "entry";
         div.innerHTML = `
+          <button onclick="deleteEntry(${index})">Delete</button>
           <p>${entry.note ? entry.note : ''}</p>
-          ${entry.image ? `<img src="${entry.image}" style="max-width:100%; border-radius: 10px;" />` : ''}
+          ${entry.image ? `<img src="${entry.image}" alt="Saved Healing Image" />` : ''}
         `;
         container.appendChild(div);
       });
     }
 
-    // Initial load
+    // On page load
     window.onload = loadEntries;
   </script>
 
 </body>
 </html>
+
