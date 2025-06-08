@@ -34,6 +34,11 @@
     img {
       max-width: 100%;
       border-radius: 10px;
+      box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+      transition: transform 0.3s ease;
+    }
+    img:hover {
+      transform: scale(1.02);
     }
   </style>
 </head>
@@ -64,6 +69,14 @@
 
     <h3>My Healing Photo</h3>
     <img src="myhealing.jpg" alt="My Healing Photo" />
+
+    <div style="margin-top: 1rem;">
+      <h4>Additional Healing Moments</h4>
+      <div style="display: flex; flex-direction: column; gap: 1rem;">
+        <img src="redp.jpg" alt="Healing Portrait 1" />
+        <img src="e3b6bc11-941d-4ecb-ada2-e11c38d0f362.jpg" alt="Healing Portrait 2" />
+      </div>
+    </div>
   </section>
 
   <section id="contact">
