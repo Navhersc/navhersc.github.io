@@ -34,20 +34,15 @@
     img {
       max-width: 100%;
       border-radius: 10px;
-      box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
-      transition: transform 0.3s ease;
-    }
-    img:hover {
-      transform: scale(1.02);
     }
     textarea {
       width: 100%;
       height: 100px;
       border-radius: 10px;
-      border: none;
       padding: 1rem;
       margin-bottom: 1rem;
       font-family: inherit;
+      resize: vertical;
     }
     input[type="file"] {
       margin-bottom: 1rem;
@@ -61,6 +56,23 @@
       border-radius: 12px;
       padding: 1.5rem;
       margin-top: 2rem;
+    }
+    button {
+      background-color: #cc99ff;
+      color: #fff;
+      padding: 0.5rem 1rem;
+      border: none;
+      border-radius: 8px;
+      cursor: pointer;
+    }
+    #savedEntries {
+      margin-top: 2rem;
+    }
+    .entry {
+      background-color: #fff0ff;
+      padding: 1rem;
+      border-radius: 10px;
+      margin-bottom: 1rem;
     }
   </style>
 </head>
@@ -91,20 +103,17 @@
     </p>
 
     <h3>My Healing Photo</h3>
-    <img src="myhealing.jpg" alt/>
-
+    <img src="myhealing.jpg" alt="My Healing Photo" />
     <div style="margin-top: 1rem;">
       <h4>Additional Healing Moments</h4>
-      <div style="display: flex; flex-direction: column; gap: 1rem;">
-        <img src="redp.jpg" alt="Healing Portrait 1" />
-        <img src="e3b6bc11-941d-4ecb-ada2-e11c38d0f362.jpg" alt="Healing Portrait 2" />
-      </div>
+      <img src="redp.jpg" alt="Healing Portrait 1" />
+      <img src="e3b6bc11-941d-4ecb-ada2-e11c38d0f362.jpg" alt="Healing Portrait 2" />
     </div>
   </section>
 
   <section id="share">
     <h2>Share Your Healing</h2>
-    <p>Add a note, upload a photo, or share a song that helps you feel better.</p>
+    <p>Add a note, upload a photo, and save it for later.</p>
 
     <div class="upload-box">
       <label for="note"><strong>Write a Note</strong></label><br>
@@ -112,11 +121,14 @@
 
       <label for="imageUpload"><strong>Upload a Photo</strong></label><br>
       <input type="file" id="imageUpload" accept="image/*" /><br>
-      <img id="imagePreview" style="display:none;" />
+      <img id="imagePreview" style="display:none; max-width: 100%; margin-top: 1rem;" />
 
-      <label for="musicUpload"><strong>Upload Music</strong></label><br>
-      <input type="file" id="musicUpload" accept="audio/*" />
-      <audio controls id="musicPlayer" style="display:none;"></audio>
+      <br><button onclick="saveEntry()">Save Entry</button>
+    </div>
+
+    <div id="savedEntries">
+      <h3>Saved Healing Entries</h3>
+      <!-- Entries will appear here -->
     </div>
   </section>
 
@@ -126,31 +138,57 @@
   </section>
 
   <script>
-    // Image preview
-    document.getElementById('imageUpload').addEventListener('change', function(e) {
+    // Preview image
+    let savedImageData = "";
+    document.getElementById('imageUpload').addEventListener('change', function (e) {
       const file = e.target.files[0];
       if (file) {
         const reader = new FileReader();
-        reader.onload = function(evt) {
+        reader.onload = function (evt) {
+          savedImageData = evt.target.result;
           const img = document.getElementById('imagePreview');
-          img.src = evt.target.result;
+          img.src = savedImageData;
           img.style.display = 'block';
-          img.style.maxWidth = '100%';
-          img.style.marginTop = '1rem';
         };
         reader.readAsDataURL(file);
       }
     });
 
-    // Music preview
-    document.getElementById('musicUpload').addEventListener('change', function(e) {
-      const file = e.target.files[0];
-      if (file) {
-        const audio = document.getElementById('musicPlayer');
-        audio.src = URL.createObjectURL(file);
-        audio.style.display = 'block';
+    // Save entry
+    function saveEntry() {
+      const note = document.getElementById('note').value;
+      if (!note && !savedImageData) {
+        alert("Please enter a note or upload a picture.");
+        return;
       }
-    });
+
+      let entries = JSON.parse(localStorage.getItem("healingEntries")) || [];
+      entries.push({ note: note, image: savedImageData });
+      localStorage.setItem("healingEntries", JSON.stringify(entries));
+      document.getElementById('note').value = "";
+      document.getElementById('imagePreview').style.display = 'none';
+      savedImageData = "";
+      loadEntries();
+    }
+
+    // Load saved entries
+    function loadEntries() {
+      const entries = JSON.parse(localStorage.getItem("healingEntries")) || [];
+      const container = document.getElementById('savedEntries');
+      container.innerHTML = "<h3>Saved Healing Entries</h3>";
+      entries.forEach(entry => {
+        const div = document.createElement('div');
+        div.className = "entry";
+        div.innerHTML = `
+          <p>${entry.note ? entry.note : ''}</p>
+          ${entry.image ? `<img src="${entry.image}" style="max-width:100%; border-radius: 10px;" />` : ''}
+        `;
+        container.appendChild(div);
+      });
+    }
+
+    // Initial load
+    window.onload = loadEntries;
   </script>
 
 </body>
