@@ -31,11 +31,9 @@
       margin: auto;
       padding: 2rem;
     }
-    form {
-      margin-top: 1rem;
-    }
-    input[type="file"] {
-      margin-bottom: 1rem;
+    img {
+      max-width: 100%;
+      border-radius: 10px;
     }
   </style>
 </head>
@@ -44,7 +42,7 @@
   <header>
     <h1>🐱 My Healing Journey</h1>
     <p><em>"Like a cat, I land on my feet. Healing one purr at a time."</em></p>
-    <img src="https://placekitten.com/300/200" alt="Cute Cat" style="border-radius: 10px;" />
+    <img src="https://placekitten.com/300/200" alt="Cute Cat" />
   </header>
 
   <nav>
@@ -64,12 +62,8 @@
       After a tough breakup, I chose to focus on myself. I surrounded myself with quiet moments, journaling, and the gentle company of my cat. Every day I found a little more peace, and I want to share my journey with you here.
     </p>
 
-    <h3>Upload a Photo</h3>
-    <form action="/upload" method="POST" enctype="multipart/form-data">
-      <input type="file" name="photo" accept="image/*" required />
-      <br />
-      <button type="submit">Upload</button>
-    </form>
+    <h3>My Healing Photo</h3>
+    <img src="myhealing.jpg" alt="My Healing Photo" />
   </section>
 
   <section id="contact">
