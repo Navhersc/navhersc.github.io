@@ -78,10 +78,6 @@
       right: 10px;
     }
   </style>
-  <!-- Firebase SDK -->
-  <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-app-compat.js"></script>
-  <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-firestore-compat.js"></script>
-  <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-storage-compat.js"></script>
 </head>
 <body>
 
@@ -108,6 +104,7 @@
     <p>
       After a tough breakup, I chose to focus on myself. I surrounded myself with quiet moments, journaling, and the gentle company of my cat. Every day I found a little more peace, and I want to share my journey with you here.
     </p>
+
     <h3>My Healing Photo</h3>
     <img src="myhealing.jpg" alt="My Healing Photo" />
     <div style="margin-top: 1rem;">
@@ -143,96 +140,102 @@
     <p>Feel free to reach out to me: <strong>09677 965 325</strong></p>
   </section>
 
+  <!-- Firebase scripts -->
+  <script src="https://www.gstatic.com/firebasejs/10.0.0/firebase-app.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/10.0.0/firebase-firestore.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/10.0.0/firebase-storage.js"></script>
+
   <script>
+    // Your Firebase configuration
     const firebaseConfig = {
-      apiKey: "YOUR_API_KEY",
-      authDomain: "YOUR_PROJECT_ID.firebaseapp.com",
-      projectId: "YOUR_PROJECT_ID",
-      storageBucket: "YOUR_PROJECT_ID.appspot.com",
-      messagingSenderId: "YOUR_MESSAGING_SENDER_ID",
-      appId: "YOUR_APP_ID"
+      apiKey: "AIzaSyD7mJP8U3IRLSv-DgVQJmNolG7ouRA-dv8",
+      authDomain: "healing-journey-d7204.firebaseapp.com",
+      projectId: "healing-journey-d7204",
+      storageBucket: "healing-journey-d7204.appspot.com",
+      messagingSenderId: "477815035331",
+      appId: "1:477815035331:web:1ec12501a78f818d8a1976",
+      measurementId: "G-LDMTQLDMGB"
     };
 
-    firebase.initializeApp(firebaseConfig);
+    // Initialize Firebase
+    const app = firebase.initializeApp(firebaseConfig);
     const db = firebase.firestore();
     const storage = firebase.storage();
 
-    let selectedImageFile = null;
+    let imageFile = null;
 
+    // Image preview and store file reference
     document.getElementById('imageUpload').addEventListener('change', function (e) {
-      selectedImageFile = e.target.files[0];
-      if (selectedImageFile) {
+      const file = e.target.files[0];
+      if (file) {
+        imageFile = file;
         const reader = new FileReader();
         reader.onload = function (evt) {
           const img = document.getElementById('imagePreview');
           img.src = evt.target.result;
           img.style.display = 'block';
         };
-        reader.readAsDataURL(selectedImageFile);
+        reader.readAsDataURL(file);
+      } else {
+        imageFile = null;
+        document.getElementById('imagePreview').style.display = 'none';
       }
     });
 
     async function saveEntry() {
       const note = document.getElementById('note').value.trim();
-      if (!note && !selectedImageFile) {
+
+      if (!note && !imageFile) {
         alert("Please enter a note or upload a picture.");
         return;
       }
 
+      // Show saving status maybe...
+
       let imageUrl = "";
-      if (selectedImageFile) {
-        const storageRef = storage.ref(`healingImages/${Date.now()}_${selectedImageFile.name}`);
-        await storageRef.put(selectedImageFile);
-        imageUrl = await storageRef.getDownloadURL();
+      if (imageFile) {
+        // Upload image to Firebase Storage
+        const storageRef = storage.ref();
+        const imageRef = storageRef.child('images/' + Date.now() + '_' + imageFile.name);
+        await imageRef.put(imageFile);
+        imageUrl = await imageRef.getDownloadURL();
       }
 
+      // Save note + image URL to Firestore
       await db.collection("healingEntries").add({
         note: note,
-        image: imageUrl,
-        timestamp: firebase.firestore.FieldValue.serverTimestamp()
+        imageUrl: imageUrl,
+        createdAt: firebase.firestore.FieldValue.serverTimestamp()
       });
 
+      // Reset inputs
       document.getElementById('note').value = "";
-      document.getElementById('imagePreview').style.display = 'none';
       document.getElementById('imageUpload').value = "";
-      selectedImageFile = null;
+      document.getElementById('imagePreview').style.display = 'none';
+      imageFile = null;
 
       loadEntries();
     }
 
     async function deleteEntry(docId) {
+      // Delete Firestore document
       await db.collection("healingEntries").doc(docId).delete();
+      // (Optional) Delete image from Storage? Need image path saved for that.
       loadEntries();
     }
 
     async function loadEntries() {
       const container = document.getElementById('savedEntries');
       container.innerHTML = "<h3>Saved Healing Entries</h3>";
-      const snapshot = await db.collection("healingEntries").orderBy("timestamp", "desc").get();
 
+      const snapshot = await db.collection("healingEntries").orderBy("createdAt", "desc").get();
       snapshot.forEach(doc => {
-        const entry = doc.data();
+        const data = doc.data();
         const div = document.createElement('div');
         div.className = "entry";
+
         div.innerHTML = `
           <button onclick="deleteEntry('${doc.id}')">Delete</button>
-          <p>${entry.note || ''}</p>
-          ${entry.image ? `<img src="${entry.image}" alt="Healing Image" />` : ''}
-        `;
-        container.appendChild(div);
-      });
-    }
-
-    window.onload = loadEntries;
-  </script>
-</body>
-</html>
-const firebaseConfig = {
-  apiKey: "YOUR_API_KEY",
-  authDomain: "YOUR_PROJECT_ID.firebaseapp.com",
-  projectId: "YOUR_PROJECT_ID",
-  storageBucket: "YOUR_PROJECT_ID.appspot.com",
-  messagingSenderId: "YOUR_MESSAGING_SENDER_ID",
-  appId: "YOUR_APP_ID"
-};
+          <p>${data.note ? data.note : ''}</p>
+          ${data.imageUrl ? `<img src="${data.imageUrl}"
 
