@@ -78,6 +78,10 @@
       right: 10px;
     }
   </style>
+  <!-- Firebase SDK -->
+  <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-app-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-firestore-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-storage-compat.js"></script>
 </head>
 <body>
 
@@ -104,7 +108,6 @@
     <p>
       After a tough breakup, I chose to focus on myself. I surrounded myself with quiet moments, journaling, and the gentle company of my cat. Every day I found a little more peace, and I want to share my journey with you here.
     </p>
-
     <h3>My Healing Photo</h3>
     <img src="myhealing.jpg" alt="My Healing Photo" />
     <div style="margin-top: 1rem;">
@@ -141,74 +144,87 @@
   </section>
 
   <script>
-    let savedImageData = "";
+    const firebaseConfig = {
+      apiKey: "YOUR_API_KEY",
+      authDomain: "YOUR_PROJECT_ID.firebaseapp.com",
+      projectId: "YOUR_PROJECT_ID",
+      storageBucket: "YOUR_PROJECT_ID.appspot.com",
+      messagingSenderId: "YOUR_MESSAGING_SENDER_ID",
+      appId: "YOUR_APP_ID"
+    };
 
-    // Handle image preview and store as base64
+    firebase.initializeApp(firebaseConfig);
+    const db = firebase.firestore();
+    const storage = firebase.storage();
+
+    let selectedImageFile = null;
+
     document.getElementById('imageUpload').addEventListener('change', function (e) {
-      const file = e.target.files[0];
-      if (file) {
+      selectedImageFile = e.target.files[0];
+      if (selectedImageFile) {
         const reader = new FileReader();
         reader.onload = function (evt) {
-          savedImageData = evt.target.result;
           const img = document.getElementById('imagePreview');
-          img.src = savedImageData;
+          img.src = evt.target.result;
           img.style.display = 'block';
         };
-        reader.readAsDataURL(file);
+        reader.readAsDataURL(selectedImageFile);
       }
     });
 
-    // Save entry to localStorage
-    function saveEntry() {
+    async function saveEntry() {
       const note = document.getElementById('note').value.trim();
-      if (!note && !savedImageData) {
+      if (!note && !selectedImageFile) {
         alert("Please enter a note or upload a picture.");
         return;
       }
 
-      let entries = JSON.parse(localStorage.getItem("healingEntries")) || [];
-      entries.push({ note: note, image: savedImageData });
-      localStorage.setItem("healingEntries", JSON.stringify(entries));
+      let imageUrl = "";
+      if (selectedImageFile) {
+        const storageRef = storage.ref(`healingImages/${Date.now()}_${selectedImageFile.name}`);
+        await storageRef.put(selectedImageFile);
+        imageUrl = await storageRef.getDownloadURL();
+      }
 
-      // Reset input
+      await db.collection("healingEntries").add({
+        note: note,
+        image: imageUrl,
+        timestamp: firebase.firestore.FieldValue.serverTimestamp()
+      });
+
       document.getElementById('note').value = "";
       document.getElementById('imagePreview').style.display = 'none';
       document.getElementById('imageUpload').value = "";
-      savedImageData = "";
+      selectedImageFile = null;
 
       loadEntries();
     }
 
-    // Delete entry by index
-    function deleteEntry(index) {
-      let entries = JSON.parse(localStorage.getItem("healingEntries")) || [];
-      entries.splice(index, 1);
-      localStorage.setItem("healingEntries", JSON.stringify(entries));
+    async function deleteEntry(docId) {
+      await db.collection("healingEntries").doc(docId).delete();
       loadEntries();
     }
 
-    // Load and show saved entries
-    function loadEntries() {
-      const entries = JSON.parse(localStorage.getItem("healingEntries")) || [];
+    async function loadEntries() {
       const container = document.getElementById('savedEntries');
       container.innerHTML = "<h3>Saved Healing Entries</h3>";
+      const snapshot = await db.collection("healingEntries").orderBy("timestamp", "desc").get();
 
-      entries.forEach((entry, index) => {
+      snapshot.forEach(doc => {
+        const entry = doc.data();
         const div = document.createElement('div');
         div.className = "entry";
         div.innerHTML = `
-          <button onclick="deleteEntry(${index})">Delete</button>
-          <p>${entry.note ? entry.note : ''}</p>
-          ${entry.image ? `<img src="${entry.image}" alt="Saved Healing Image" />` : ''}
+          <button onclick="deleteEntry('${doc.id}')">Delete</button>
+          <p>${entry.note || ''}</p>
+          ${entry.image ? `<img src="${entry.image}" alt="Healing Image" />` : ''}
         `;
         container.appendChild(div);
       });
     }
 
-    // On page load
     window.onload = loadEntries;
   </script>
-
 </body>
 </html>
 
