@@ -2,7 +2,7 @@
 <html lang="en">
 <head>
   <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
   <title>My Healing Journey</title>
   <style>
     body {
@@ -69,7 +69,7 @@
       margin-bottom: 1rem;
       position: relative;
     }
-    .entry button.delete-btn {
+    .entry button {
       background-color: #ff6699;
       padding: 0.3rem 0.8rem;
       font-size: 0.8rem;
@@ -120,14 +120,14 @@
     <p>Add a note, upload a photo, and save or delete them freely.</p>
 
     <div class="upload-box">
-      <label for="note"><strong>Write a Note</strong></label><br>
+      <label for="note"><strong>Write a Note</strong></label><br />
       <textarea id="note" placeholder="Today I felt..."></textarea>
 
-      <label for="imageUpload"><strong>Upload a Photo</strong></label><br>
-      <input type="file" id="imageUpload" accept="image/*" /><br>
+      <label for="imageUpload"><strong>Upload a Photo</strong></label><br />
+      <input type="file" id="imageUpload" accept="image/*" /><br />
       <img id="imagePreview" style="display:none; max-width: 100%; margin-top: 1rem;" />
 
-      <br><button id="saveBtn">Save Entry</button>
+      <br /><button onclick="saveEntry()">Save Entry</button>
     </div>
 
     <div id="savedEntries">
@@ -141,22 +141,33 @@
     <p>Feel free to reach out to me: <strong>09677 965 325</strong></p>
   </section>
 
-  <!-- Firebase SDKs -->
   <script type="module">
-    // Import Firebase functions
-    import { initializeApp } from "https://www.gstatic.com/firebasejs/9.23.0/firebase-app.js";
-    import { getFirestore, collection, addDoc, getDocs, deleteDoc, doc, query, orderBy } from "https://www.gstatic.com/firebasejs/9.23.0/firebase-firestore.js";
-    import { getStorage, ref, uploadString, getDownloadURL, deleteObject } from "https://www.gstatic.com/firebasejs/9.23.0/firebase-storage.js";
+    import { initializeApp } from "https://www.gstatic.com/firebasejs/9.22.2/firebase-app.js";
+    import {
+      getFirestore,
+      collection,
+      addDoc,
+      getDocs,
+      deleteDoc,
+      doc,
+      query,
+      orderBy
+    } from "https://www.gstatic.com/firebasejs/9.22.2/firebase-firestore.js";
+    import {
+      getStorage,
+      ref,
+      uploadBytes,
+      getDownloadURL,
+      deleteObject
+    } from "https://www.gstatic.com/firebasejs/9.22.2/firebase-storage.js";
 
-    // Your web app's Firebase configuration
     const firebaseConfig = {
       apiKey: "AIzaSyD7mJP8U3IRLSv-DgVQJmNolG7ouRA-dv8",
       authDomain: "healing-journey-d7204.firebaseapp.com",
       projectId: "healing-journey-d7204",
       storageBucket: "healing-journey-d7204.appspot.com",
       messagingSenderId: "477815035331",
-      appId: "1:477815035331:web:1ec12501a78f818d8a1976",
-      measurementId: "G-LDMTQLDMGB"
+      appId: "1:477815035331:web:1ec12501a78f818d8a1976"
     };
 
     // Initialize Firebase
@@ -164,139 +175,113 @@
     const db = getFirestore(app);
     const storage = getStorage(app);
 
-    const noteInput = document.getElementById('note');
-    const imageUpload = document.getElementById('imageUpload');
-    const imagePreview = document.getElementById('imagePreview');
-    const saveBtn = document.getElementById('saveBtn');
-    const savedEntriesContainer = document.getElementById('savedEntries');
+    const noteInput = document.getElementById("note");
+    const imageInput = document.getElementById("imageUpload");
+    const imagePreview = document.getElementById("imagePreview");
+    const entriesContainer = document.getElementById("savedEntries");
 
-    let savedImageData = "";
+    let selectedFile = null;
 
-    // Handle image preview and store base64 string temporarily
-    imageUpload.addEventListener('change', (e) => {
+    imageInput.addEventListener("change", (e) => {
       const file = e.target.files[0];
       if (file) {
+        selectedFile = file;
         const reader = new FileReader();
-        reader.onload = function(evt) {
-          savedImageData = evt.target.result;
-          imagePreview.src = savedImageData;
+        reader.onload = (evt) => {
+          imagePreview.src = evt.target.result;
           imagePreview.style.display = "block";
         };
         reader.readAsDataURL(file);
       } else {
-        savedImageData = "";
+        selectedFile = null;
         imagePreview.style.display = "none";
+        imagePreview.src = "";
       }
     });
 
-    // Save entry to Firestore and Storage
-    saveBtn.addEventListener('click', async () => {
-      const note = noteInput.value.trim();
-
-      if (!note && !savedImageData) {
-        alert("Please enter a note or upload a picture.");
+    window.saveEntry = async function () {
+      const noteText = noteInput.value.trim();
+      if (!noteText && !selectedFile) {
+        alert("Please add a note or upload a photo.");
         return;
       }
 
-      saveBtn.disabled = true;
-      saveBtn.textContent = "Saving...";
-
       let imageUrl = "";
+      let imagePath = "";
 
-      try {
-        // If there is an image, upload it to Firebase Storage first
-        if (savedImageData) {
-          const imageRef = ref(storage, 'healing_images/' + Date.now() + '.jpg');
-          // Upload base64 string
-          await uploadString(imageRef, savedImageData, 'data_url');
-          imageUrl = await getDownloadURL(imageRef);
-        }
-
-        // Save entry in Firestore
-        await addDoc(collection(db, "healingEntries"), {
-          note: note,
-          imageUrl: imageUrl,
-          createdAt: new Date()
-        });
-
-        // Reset inputs
-        noteInput.value = "";
-        imageUpload.value = "";
-        imagePreview.style.display = "none";
-        savedImageData = "";
-
-        await loadEntries();
-
-      } catch (error) {
-        alert("Error saving entry: " + error.message);
+      if (selectedFile) {
+        const storageRef = ref(
+          storage,
+          "healing_images/" + Date.now() + "_" + selectedFile.name
+        );
+        await uploadBytes(storageRef, selectedFile);
+        imageUrl = await getDownloadURL(storageRef);
+        imagePath = storageRef.fullPath;
       }
 
-      saveBtn.disabled = false;
-      saveBtn.textContent = "Save Entry";
-    });
+      await addDoc(collection(db, "healingEntries"), {
+        note: noteText,
+        imageUrl: imageUrl,
+        imagePath: imagePath,
+        timestamp: Date.now()
+      });
 
-    // Load entries from Firestore and display
+      noteInput.value = "";
+      imageInput.value = "";
+      imagePreview.style.display = "none";
+      imagePreview.src = "";
+      selectedFile = null;
+
+      loadEntries();
+    };
+
+    window.deleteEntry = async function (id, imagePath) {
+      await deleteDoc(doc(db, "healingEntries", id));
+      if (imagePath) {
+        const imgRef = ref(storage, imagePath);
+        await deleteObject(imgRef).catch(() => {
+          // Ignore error if file missing
+        });
+      }
+      loadEntries();
+    };
+
     async function loadEntries() {
-      savedEntriesContainer.innerHTML = "<h3>Saved Healing Entries</h3>";
+      entriesContainer.innerHTML = "<h3>Saved Healing Entries</h3>";
 
-      const q = query(collection(db, "healingEntries"), orderBy("createdAt", "desc"));
+      const q = query(collection(db, "healingEntries"), orderBy("timestamp", "desc"));
       const querySnapshot = await getDocs(q);
 
-      querySnapshot.forEach(docSnap => {
-        const data = docSnap.data();
-        const div = document.createElement('div');
+      if (querySnapshot.empty) {
+        entriesContainer.innerHTML += "<p>No entries yet.</p>";
+        return;
+      }
+
+      querySnapshot.forEach((docSnap) => {
+        const entry = docSnap.data();
+        const entryId = docSnap.id;
+
+        const div = document.createElement("div");
         div.className = "entry";
 
+        let imgHTML = entry.imageUrl
+          ? `<img src="${entry.imageUrl}" alt="Saved Healing Image" />`
+          : "";
+        let noteHTML = entry.note ? `<p>${entry.note}</p>` : "";
+
         div.innerHTML = `
-          <button class="delete-btn" data-id="${docSnap.id}">Delete</button>
-          <p>${data.note ? data.note : ''}</p>
-          ${data.imageUrl ? `<img src="${data.imageUrl}" alt="Saved Healing Image" />` : ''}
+          <button onclick="deleteEntry('${entryId}', '${entry.imagePath || ""}')">Delete</button>
+          ${noteHTML}
+          ${imgHTML}
         `;
 
-        savedEntriesContainer.appendChild(div);
-      });
-
-      // Add event listeners for all delete buttons
-      document.querySelectorAll('.delete-btn').forEach(btn => {
-        btn.addEventListener('click', async (e) => {
-          const id = e.target.getAttribute('data-id');
-          if(confirm("Are you sure you want to delete this entry?")) {
-            await deleteEntry(id);
-          }
-        });
+        entriesContainer.appendChild(div);
       });
     }
 
-    // Delete entry and associated image
-    async function deleteEntry(docId) {
-      // Get document data to delete the image from Storage
-      const docRef = doc(db, "healingEntries", docId);
-      const docSnap = await getDocs(docRef);
-
-      try {
-        // Delete image in Storage if exists
-        const entrySnapshot = await doc(db, "healingEntries", docId).get();
-        if (entrySnapshot.exists()) {
-          const data = entrySnapshot.data();
-          if (data.imageUrl) {
-            const imageRef = ref(storage, data.imageUrl);
-            await deleteObject(imageRef).catch(() => {
-              // ignore if image already deleted or not found
-            });
-          }
-        }
-      } catch {}
-
-      // Delete Firestore document
-      await deleteDoc(docRef);
-      await loadEntries();
-    }
-
-    // Initial load
     window.onload = loadEntries;
   </script>
 </body>
 </html>
-``
 
-   
+  
