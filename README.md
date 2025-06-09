@@ -69,13 +69,14 @@
       margin-bottom: 1rem;
       position: relative;
     }
-    .entry button {
+    .entry button.delete-btn {
       background-color: #ff6699;
       padding: 0.3rem 0.8rem;
       font-size: 0.8rem;
       position: absolute;
       top: 10px;
       right: 10px;
+      cursor: pointer;
     }
   </style>
 </head>
@@ -126,7 +127,7 @@
       <input type="file" id="imageUpload" accept="image/*" /><br>
       <img id="imagePreview" style="display:none; max-width: 100%; margin-top: 1rem;" />
 
-      <br><button onclick="saveEntry()">Save Entry</button>
+      <br><button id="saveBtn">Save Entry</button>
     </div>
 
     <div id="savedEntries">
@@ -140,13 +141,14 @@
     <p>Feel free to reach out to me: <strong>09677 965 325</strong></p>
   </section>
 
-  <!-- Firebase scripts -->
-  <script src="https://www.gstatic.com/firebasejs/10.0.0/firebase-app.js"></script>
-  <script src="https://www.gstatic.com/firebasejs/10.0.0/firebase-firestore.js"></script>
-  <script src="https://www.gstatic.com/firebasejs/10.0.0/firebase-storage.js"></script>
+  <!-- Firebase SDKs -->
+  <script type="module">
+    // Import Firebase functions
+    import { initializeApp } from "https://www.gstatic.com/firebasejs/9.23.0/firebase-app.js";
+    import { getFirestore, collection, addDoc, getDocs, deleteDoc, doc, query, orderBy } from "https://www.gstatic.com/firebasejs/9.23.0/firebase-firestore.js";
+    import { getStorage, ref, uploadString, getDownloadURL, deleteObject } from "https://www.gstatic.com/firebasejs/9.23.0/firebase-storage.js";
 
-  <script>
-    // Your Firebase configuration
+    // Your web app's Firebase configuration
     const firebaseConfig = {
       apiKey: "AIzaSyD7mJP8U3IRLSv-DgVQJmNolG7ouRA-dv8",
       authDomain: "healing-journey-d7204.firebaseapp.com",
@@ -158,84 +160,143 @@
     };
 
     // Initialize Firebase
-    const app = firebase.initializeApp(firebaseConfig);
-    const db = firebase.firestore();
-    const storage = firebase.storage();
+    const app = initializeApp(firebaseConfig);
+    const db = getFirestore(app);
+    const storage = getStorage(app);
 
-    let imageFile = null;
+    const noteInput = document.getElementById('note');
+    const imageUpload = document.getElementById('imageUpload');
+    const imagePreview = document.getElementById('imagePreview');
+    const saveBtn = document.getElementById('saveBtn');
+    const savedEntriesContainer = document.getElementById('savedEntries');
 
-    // Image preview and store file reference
-    document.getElementById('imageUpload').addEventListener('change', function (e) {
+    let savedImageData = "";
+
+    // Handle image preview and store base64 string temporarily
+    imageUpload.addEventListener('change', (e) => {
       const file = e.target.files[0];
       if (file) {
-        imageFile = file;
         const reader = new FileReader();
-        reader.onload = function (evt) {
-          const img = document.getElementById('imagePreview');
-          img.src = evt.target.result;
-          img.style.display = 'block';
+        reader.onload = function(evt) {
+          savedImageData = evt.target.result;
+          imagePreview.src = savedImageData;
+          imagePreview.style.display = "block";
         };
         reader.readAsDataURL(file);
       } else {
-        imageFile = null;
-        document.getElementById('imagePreview').style.display = 'none';
+        savedImageData = "";
+        imagePreview.style.display = "none";
       }
     });
 
-    async function saveEntry() {
-      const note = document.getElementById('note').value.trim();
+    // Save entry to Firestore and Storage
+    saveBtn.addEventListener('click', async () => {
+      const note = noteInput.value.trim();
 
-      if (!note && !imageFile) {
+      if (!note && !savedImageData) {
         alert("Please enter a note or upload a picture.");
         return;
       }
 
-      // Show saving status maybe...
+      saveBtn.disabled = true;
+      saveBtn.textContent = "Saving...";
 
       let imageUrl = "";
-      if (imageFile) {
-        // Upload image to Firebase Storage
-        const storageRef = storage.ref();
-        const imageRef = storageRef.child('images/' + Date.now() + '_' + imageFile.name);
-        await imageRef.put(imageFile);
-        imageUrl = await imageRef.getDownloadURL();
+
+      try {
+        // If there is an image, upload it to Firebase Storage first
+        if (savedImageData) {
+          const imageRef = ref(storage, 'healing_images/' + Date.now() + '.jpg');
+          // Upload base64 string
+          await uploadString(imageRef, savedImageData, 'data_url');
+          imageUrl = await getDownloadURL(imageRef);
+        }
+
+        // Save entry in Firestore
+        await addDoc(collection(db, "healingEntries"), {
+          note: note,
+          imageUrl: imageUrl,
+          createdAt: new Date()
+        });
+
+        // Reset inputs
+        noteInput.value = "";
+        imageUpload.value = "";
+        imagePreview.style.display = "none";
+        savedImageData = "";
+
+        await loadEntries();
+
+      } catch (error) {
+        alert("Error saving entry: " + error.message);
       }
 
-      // Save note + image URL to Firestore
-      await db.collection("healingEntries").add({
-        note: note,
-        imageUrl: imageUrl,
-        createdAt: firebase.firestore.FieldValue.serverTimestamp()
-      });
+      saveBtn.disabled = false;
+      saveBtn.textContent = "Save Entry";
+    });
 
-      // Reset inputs
-      document.getElementById('note').value = "";
-      document.getElementById('imageUpload').value = "";
-      document.getElementById('imagePreview').style.display = 'none';
-      imageFile = null;
-
-      loadEntries();
-    }
-
-    async function deleteEntry(docId) {
-      // Delete Firestore document
-      await db.collection("healingEntries").doc(docId).delete();
-      // (Optional) Delete image from Storage? Need image path saved for that.
-      loadEntries();
-    }
-
+    // Load entries from Firestore and display
     async function loadEntries() {
-      const container = document.getElementById('savedEntries');
-      container.innerHTML = "<h3>Saved Healing Entries</h3>";
+      savedEntriesContainer.innerHTML = "<h3>Saved Healing Entries</h3>";
 
-      const snapshot = await db.collection("healingEntries").orderBy("createdAt", "desc").get();
-      snapshot.forEach(doc => {
-        const data = doc.data();
+      const q = query(collection(db, "healingEntries"), orderBy("createdAt", "desc"));
+      const querySnapshot = await getDocs(q);
+
+      querySnapshot.forEach(docSnap => {
+        const data = docSnap.data();
         const div = document.createElement('div');
         div.className = "entry";
 
         div.innerHTML = `
-          <button onclick="deleteEntry('${doc.id}')">Delete</button>
+          <button class="delete-btn" data-id="${docSnap.id}">Delete</button>
           <p>${data.note ? data.note : ''}</p>
-          ${data.imageUrl ? `<img src="${data.imageUrl}"
+          ${data.imageUrl ? `<img src="${data.imageUrl}" alt="Saved Healing Image" />` : ''}
+        `;
 
+        savedEntriesContainer.appendChild(div);
+      });
+
+      // Add event listeners for all delete buttons
+      document.querySelectorAll('.delete-btn').forEach(btn => {
+        btn.addEventListener('click', async (e) => {
+          const id = e.target.getAttribute('data-id');
+          if(confirm("Are you sure you want to delete this entry?")) {
+            await deleteEntry(id);
+          }
+        });
+      });
+    }
+
+    // Delete entry and associated image
+    async function deleteEntry(docId) {
+      // Get document data to delete the image from Storage
+      const docRef = doc(db, "healingEntries", docId);
+      const docSnap = await getDocs(docRef);
+
+      try {
+        // Delete image in Storage if exists
+        const entrySnapshot = await doc(db, "healingEntries", docId).get();
+        if (entrySnapshot.exists()) {
+          const data = entrySnapshot.data();
+          if (data.imageUrl) {
+            const imageRef = ref(storage, data.imageUrl);
+            await deleteObject(imageRef).catch(() => {
+              // ignore if image already deleted or not found
+            });
+          }
+        }
+      } catch {}
+
+      // Delete Firestore document
+      await deleteDoc(docRef);
+      await loadEntries();
+    }
+
+    // Initial load
+    window.onload = loadEntries;
+  </script>
+</body>
+</html>
+``
+
+   
